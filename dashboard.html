@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMZA SKU - Active Targets</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Cairo:wght@400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif; background: #0a0e1a; color: #e0e6ed;
+            min-height: 100vh; padding: 20px;
+        }
+        
+        body::before {
+            content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px),
+                        linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite; pointer-events: none; z-index: 0;
+        }
+        @keyframes gridMove { 0% { transform: translate(0,0); } 100% { transform: translate(50px,50px); } }
+        
+        .glow-orb {
+            position: fixed; width: 600px; height: 600px; border-radius: 50%;
+            filter: blur(100px); pointer-events: none; z-index: 1;
+            animation: orbFloat 20s ease-in-out infinite;
+        }
+        .glow-orb:nth-child(1) { top: -200px; right: -200px; 
+            background: radial-gradient(circle, rgba(0,255,136,0.2), transparent); }
+        .glow-orb:nth-child(2) { bottom: -200px; left: -200px; 
+            background: radial-gradient(circle, rgba(0,136,255,0.2), transparent); animation-delay: -10s; }
+        @keyframes orbFloat { 0%,100% { transform: translate(0,0); } 50% { transform: translate(50px,-50px); } }
+        
+        .container { max-width: 1600px; margin: 0 auto; position: relative; z-index: 10; }
+        
+        .header {
+            background: linear-gradient(135deg, rgba(20,24,36,0.95), rgba(14,18,30,0.9));
+            border: 1px solid rgba(0,255,136,0.3); border-radius: 20px; padding: 25px 40px;
+            margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .logo h1 {
+            font-family: 'Orbitron'; font-size: 36px; font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #0088ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin: 0; letter-spacing: 2px;
+        }
+        .logo p { color: #8b95a8; font-size: 13px; margin: 5px 0 0 0; font-family: 'JetBrains Mono'; }
+        
+        .header-actions {
+            display: flex; gap: 15px; align-items: center;
+        }
+        .btn-small {
+            padding: 10px 20px; border: none; border-radius: 10px;
+            font-family: 'Orbitron'; font-size: 13px; font-weight: 700;
+            cursor: pointer; transition: 0.3s; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-setup {
+            background: linear-gradient(135deg, #0088ff, #0066cc); color: white;
+            box-shadow: 0 4px 15px rgba(0,136,255,0.4);
+        }
+        .btn-setup:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,136,255,0.6); }
+        .btn-logout {
+            background: linear-gradient(135deg, #ff0055, #cc0044); color: white;
+            box-shadow: 0 4px 15px rgba(255,0,85,0.4);
+        }
+        .btn-logout:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,0,85,0.6); }
+        
+        .stats-bar {
+            background: rgba(20,24,36,0.95); border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 15px; padding: 20px; margin-bottom: 25px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;
+        }
+        .stat-box {
+            text-align: center; padding: 15px;
+            background: rgba(0,255,136,0.05); border-radius: 12px;
+        }
+        .stat-value {
+            font-family: 'Orbitron'; font-size: 32px; font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: block; margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 12px; color: #8b95a8; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        .card {
+            background: rgba(20,24,36,0.95); border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 20px; padding: 30px; margin-bottom: 25px;
+        }
+        .card-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0,255,136,0.2);
+        }
+        .card-title {
+            font-family: 'Orbitron'; font-size: 22px; color: #00ff88;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .refresh-btn {
+            background: rgba(0,136,255,0.2); border: 1px solid #0088ff;
+            border-radius: 8px; padding: 8px 16px; color: #0088ff;
+            font-size: 12px; cursor: pointer; transition: 0.3s;
+            font-family: 'Cairo'; font-weight: 700;
+        }
+        .refresh-btn:hover {
+            background: #0088ff; color: white;
+            box-shadow: 0 0 15px rgba(0,136,255,0.5);
+        }
+        
+        .targets-table {
+            width: 100%; border-collapse: collapse;
+        }
+        .targets-table thead {
+            background: rgba(0,255,136,0.1);
+        }
+        .targets-table th {
+            padding: 15px; text-align: right; font-size: 12px;
+            color: #00ff88; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; border-bottom: 2px solid rgba(0,255,136,0.3);
+        }
+        .targets-table td {
+            padding: 18px 15px; text-align: right;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 14px;
+        }
+        .targets-table tbody tr {
+            transition: all 0.3s; cursor: pointer;
+        }
+        .targets-table tbody tr:hover {
+            background: rgba(0,255,136,0.05);
+            transform: scale(1.01);
+        }
+        
+        .flag-icon {
+            font-size: 28px; display: inline-block;
+        }
+        .session-id {
+            font-family: 'JetBrains Mono'; color: #00ff88;
+            background: rgba(0,255,136,0.1); padding: 4px 10px;
+            border-radius: 6px; font-size: 13px; font-weight: 700;
+        }
+        .ip-address {
+            font-family: 'JetBrains Mono'; color: #0088ff;
+            font-size: 14px; font-weight: 700;
+        }
+        .platform-badge {
+            background: rgba(0,136,255,0.2); color: #0088ff;
+            padding: 4px 12px; border-radius: 12px;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase;
+        }
+        .status-badge {
+            background: rgba(0,255,136,0.2); color: #00ff88;
+            padding: 4px 12px; border-radius: 12px;
+            font-size: 11px; font-weight: 700;
+            display: inline-flex; align-items: center; gap: 5px;
+        }
+        .status-dot {
+            width: 8px; height: 8px; background: #00ff88;
+            border-radius: 50%; animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        
+        .empty-state {
+            text-align: center; padding: 60px 20px; color: #8b95a8;
+        }
+        .empty-icon {
+            font-size: 64px; margin-bottom: 20px; opacity: 0.3;
+        }
+        .empty-text {
+            font-size: 16px; margin-bottom: 10px;
+        }
+        .empty-subtext {
+            font-size: 13px; color: #5a6477;
+        }
+        
+        .alert {
+            position: fixed; top: 80px; right: 20px; left: 20px;
+            max-width: 400px; margin: 0 auto;
+            background: rgba(20,24,36,0.98); border: 1px solid #00ff88;
+            border-radius: 12px; padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,255,136,0.3);
+            animation: slideDown 0.4s; z-index: 1000;
+            display: none;
+        }
+        .alert.show { display: block; }
+        @keyframes slideDown { from { transform: translateY(-100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .alert-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 10px; font-size: 16px; font-weight: 700;
+        }
+        .alert-icon { font-size: 24px; }
+        .alert-message { font-size: 14px; color: #8b95a8; }
+    </style>
+</head>
+<body>
+    <div class="glow-orb"></div>
+    <div class="glow-orb"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <h1>🎯 HAMZA SKU</h1>
+                <p>Active Targets Dashboard - Real Metasploit Integration</p>
+            </div>
+            <div class="header-actions">
+                <a href="/setup" class="btn-small btn-setup">⚙️ SETUP</a>
+                <button class="btn-small btn-logout" onclick="logout()">🔒 LOGOUT</button>
+            </div>
+        </div>
+        
+        <div class="stats-bar">
+            <div class="stat-box">
+                <span id="totalTargets" class="stat-value">0</span>
+                <span class="stat-label">Total Targets</span>
+            </div>
+            <div class="stat-box">
+                <span id="activeTargets" class="stat-value">0</span>
+                <span class="stat-label">Active Now</span>
+            </div>
+            <div class="stat-box">
+                <span id="totalCommands" class="stat-value">0</span>
+                <span class="stat-label">Commands Executed</span>
+            </div>
+            <div class="stat-box">
+                <span id="onlineTime" class="stat-value">00:00</span>
+                <span class="stat-label">Uptime</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <span style="font-size: 28px;">📱</span>
+                    Connected Targets
+                </h2>
+                <button class="refresh-btn" onclick="refreshTargets()">🔄 REFRESH</button>
+            </div>
+            
+            <div id="targetsContainer"></div>
+        </div>
+    </div>
+    
+    <div id="alertBox" class="alert">
+        <div class="alert-header">
+            <span class="alert-icon" id="alertIcon">🎯</span>
+            <span id="alertTitle">New Target Detected!</span>
+        </div>
+        <div class="alert-message" id="alertMessage">A new victim has connected to the C2 server</div>
+    </div>
+    
+    <script>
+        const socket = io();
+        let startTime = Date.now();
+        
+        socket.on('connect', () => {
+            console.log('[+] Connected to C2 Server');
+            refreshTargets();
+        });
+        
+        socket.on('new_session', (session) => {
+            console.log('[+] New session detected:', session);
+            showAlert('🎯 New Victim!', `Target ${session.ip} connected from ${session.country}`);
+            refreshTargets();
+        });
+        
+        socket.on('sessions_update', (data) => {
+            updateTargets(data.sessions);
+            updateStats(data.sessions);
+        });
+        
+        async function refreshTargets() {
+            try {
+                const response = await fetch('/api/sessions');
+                const data = await response.json();
+                updateTargets(data.sessions);
+                updateStats(data.sessions);
+            } catch (error) {
+                console.error('[-] Failed to load targets:', error);
+            }
+        }
+        
+        function updateTargets(sessions) {
+            const container = document.getElementById('targetsContainer');
+            
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📡</div>
+                        <div class="empty-text">No Active Targets</div>
+                        <div class="empty-subtext">
+                            Waiting for connections... Make sure Handler is running and payload is deployed.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="targets-table">
+                    <thead>
+                        <tr>
+                            <th>Country</th>
+                            <th>Session ID</th>
+                            <th>IP Address</th>
+                            <th>Platform</th>
+                            <th>Device Info</th>
+                            <th>Commands</th>
+                            <th>Connected At</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sessions.map(session => `
+                            <tr onclick="openSession('${session.id}')">
+                                <td><span class="flag-icon">${session.flag}</span></td>
+                                <td><span class="session-id">#${session.id}</span></td>
+                                <td><span class="ip-address">${session.ip}</span></td>
+                                <td><span class="platform-badge">${session.platform}</span></td>
+                                <td style="font-size: 13px; color: #8b95a8;">${session.info || 'Unknown Device'}</td>
+                                <td style="font-family: 'Orbitron'; color: #0088ff;">${session.commands_executed}</td>
+                                <td style="font-size: 12px; color: #8b95a8;">${session.connected_at}</td>
+                                <td>
+                                    <span class="status-badge">
+                                        <span class="status-dot"></span>
+                                        ACTIVE
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        function updateStats(sessions) {
+            document.getElementById('totalTargets').textContent = sessions.length;
+            document.getElementById('activeTargets').textContent = sessions.length;
+            
+            const totalCommands = sessions.reduce((sum, s) => sum + (s.commands_executed || 0), 0);
+            document.getElementById('totalCommands').textContent = totalCommands;
+            
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            document.getElementById('onlineTime').textContent = 
+                `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+        }
+        
+        function openSession(sessionId) {
+            window.location.href = `/session/${sessionId}`;
+        }
+        
+        function showAlert(title, message) {
+            const alert = document.getElementById('alertBox');
+            document.getElementById('alertTitle').textContent = title;
+            document.getElementById('alertMessage').textContent = message;
+            alert.classList.add('show');
+            
+            setTimeout(() => {
+                alert.classList.remove('show');
+            }, 5000);
+        }
+        
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+        
+        refreshTargets();
+        setInterval(refreshTargets, 10000);
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            document.getElementById('onlineTime').textContent = 
+                `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+        }, 1000);
+    </script>
+</body>
+</html>

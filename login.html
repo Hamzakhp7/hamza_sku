@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMZA SKU - Secure Access</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Cairo:wght@700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #0a0e1a;
+            color: #e0e6ed;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        #matrix { position: fixed; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.15; z-index: 0; }
+        .glow-orb {
+            position: fixed; width: 600px; height: 600px; border-radius: 50%;
+            filter: blur(100px); pointer-events: none; z-index: 1;
+            animation: orbFloat 20s ease-in-out infinite;
+        }
+        .glow-orb:nth-child(1) { top: -200px; right: -200px; background: radial-gradient(circle, rgba(0,255,136,0.3), transparent); }
+        .glow-orb:nth-child(2) { bottom: -200px; left: -200px; background: radial-gradient(circle, rgba(0,136,255,0.3), transparent); animation-delay: -10s; }
+        @keyframes orbFloat { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(50px, -50px); } }
+        
+        .login-container {
+            position: relative; z-index: 10; width: 450px;
+            background: rgba(20, 24, 36, 0.95); border: 2px solid rgba(0,255,136,0.3);
+            border-radius: 25px; padding: 50px; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 80px rgba(0,255,136,0.2);
+        }
+        .lock-icon { font-size: 60px; margin-bottom: 20px;
+            animation: lockPulse 2s ease-in-out infinite;
+        }
+        @keyframes lockPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        
+        h1 {
+            font-family: 'Orbitron', sans-serif; font-size: 42px; font-weight: 900;
+            background: linear-gradient(135deg, #00ff88, #0088ff);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            margin-bottom: 10px; letter-spacing: 3px;
+        }
+        p { color: #8b95a8; font-size: 14px; margin-bottom: 40px; font-family: 'JetBrains Mono'; }
+        
+        .input-group { margin-bottom: 30px; text-align: right; }
+        label { display: block; color: #00ff88; font-size: 12px; margin-bottom: 10px;
+            text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
+        }
+        .password-wrapper { position: relative; }
+        input[type="password"], input[type="text"] {
+            width: 100%; background: rgba(10,14,26,0.8); border: 2px solid rgba(0,255,136,0.3);
+            border-radius: 12px; padding: 15px 50px 15px 15px; color: #e0e6ed;
+            font-family: 'JetBrains Mono'; font-size: 16px; transition: all 0.3s;
+        }
+        input:focus {
+            outline: none; border-color: #00ff88;
+            box-shadow: 0 0 20px rgba(0,255,136,0.4);
+        }
+        .toggle-password {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            background: none; border: none; color: #8b95a8; cursor: pointer;
+            font-size: 20px; transition: 0.3s;
+        }
+        .toggle-password:hover { color: #00ff88; }
+        
+        .login-btn {
+            width: 100%; padding: 16px; background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none; border-radius: 12px; font-family: 'Orbitron'; font-size: 16px;
+            font-weight: 700; color: #0a0e1a; cursor: pointer; text-transform: uppercase;
+            letter-spacing: 2px; transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0,255,136,0.4);
+        }
+        .login-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(0,255,136,0.6); }
+        .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .error { background: rgba(255,0,85,0.2); border: 2px solid #ff0055; border-radius: 10px;
+            padding: 12px; margin-top: 20px; color: #ff0055; font-size: 13px;
+            display: none; animation: shake 0.5s;
+        }
+        .error.show { display: block; }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+        
+        .security-badge {
+            display: inline-block; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3);
+            border-radius: 20px; padding: 8px 15px; font-size: 11px; color: #00ff88;
+            margin-top: 30px; font-family: 'JetBrains Mono';
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix"></canvas>
+    <div class="glow-orb"></div>
+    <div class="glow-orb"></div>
+    
+    <div class="login-container">
+        <div class="lock-icon">🔒</div>
+        <h1>HAMZA SKU</h1>
+        <p>Professional C2 Platform - Secure Access</p>
+        
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="input-group">
+                <label>🔐 Master Password</label>
+                <div class="password-wrapper">
+                    <input type="password" id="passwordInput" placeholder="Enter password" required autocomplete="off">
+                    <button type="button" class="toggle-password" onclick="togglePassword()">👁️</button>
+                </div>
+            </div>
+            
+            <button type="submit" class="login-btn" id="loginBtn">⚡ ACCESS PLATFORM</button>
+            
+            <div class="error" id="errorMsg">❌ Invalid password. Access denied.</div>
+        </form>
+        
+        <div class="security-badge">🛡️ SHA-256 ENCRYPTED</div>
+    </div>
+    
+    <script>
+        // Matrix effect
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const chars = '01';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(10, 14, 26, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff88';
+            ctx.font = fontSize + 'px monospace';
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 50);
+        
+        function togglePassword() {
+            const input = document.getElementById('passwordInput');
+            const btn = event.target;
+            if (input.type === 'password') {
+                input.type = 'text';
+                btn.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                btn.textContent = '👁️';
+            }
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            const password = document.getElementById('passwordInput').value;
+            const btn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ AUTHENTICATING...';
+            errorMsg.classList.remove('show');
+            
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    btn.textContent = '✅ ACCESS GRANTED';
+                    btn.style.background = 'linear-gradient(135deg, #00ff88, #00cc66)';
+                    setTimeout(() => window.location.href = '/', 1000);
+                } else {
+                    btn.disabled = false;
+                    btn.textContent = '⚡ ACCESS PLATFORM';
+                    errorMsg.classList.add('show');
+                }
+            } catch (error) {
+                btn.disabled = false;
+                btn.textContent = '⚡ ACCESS PLATFORM';
+                errorMsg.textContent = '⚠️ Connection error';
+                errorMsg.classList.add('show');
+            }
+        }
+        
+        document.getElementById('passwordInput').focus();
+    </script>
+</body>
+</html>
