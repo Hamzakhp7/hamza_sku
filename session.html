@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMZA SKU - Session Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0e1a, #1a1e2e);
+            color: #e0e6ed;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            color: #00ff88;
+            font-size: 36px;
+            margin-bottom: 30px;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+        .card {
+            background: rgba(20, 24, 36, 0.95);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+        .btn-back {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #0088ff, #0066cc);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .quick-btn {
+            padding: 15px;
+            background: linear-gradient(135deg, #00ff88, #00cc66);
+            border: none;
+            border-radius: 10px;
+            color: #0a0e1a;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .quick-btn:hover {
+            transform: translateY(-2px);
+        }
+        .terminal {
+            background: #000;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+        }
+        .terminal-output {
+            color: #00ff88;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .command-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .command-input input {
+            flex: 1;
+            padding: 12px;
+            background: #000;
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+        }
+        .command-input button {
+            padding: 12px 30px;
+            background: #00ff88;
+            border: none;
+            border-radius: 10px;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔥 Session {{ session_id }}</h1>
+        
+        <a href="/dashboard" class="btn-back">⬅️ رجوع للـ Dashboard</a>
+        
+        <div class="card">
+            <h2 style="color: #00ff88; margin-bottom: 20px;">⚡ أوامر سريعة</h2>
+            <div class="quick-actions">
+                <button class="quick-btn" onclick="runQuick('sysinfo')">💻 System Info</button>
+                <button class="quick-btn" onclick="runQuick('pwd')">📁 Current Directory</button>
+                <button class="quick-btn" onclick="runQuick('ls')">📂 List Files</button>
+                <button class="quick-btn" onclick="runQuick('ps')">⚙️ Processes</button>
+                <button class="quick-btn" onclick="runQuick('ifconfig')">🌐 Network Info</button>
+                <button class="quick-btn" onclick="runQuick('getuid')">👤 User ID</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2 style="color: #00ff88; margin-bottom: 20px;">💻 Terminal</h2>
+            <div class="terminal">
+                <div class="terminal-output" id="output">Waiting for commands...</div>
+            </div>
+            <div class="command-input">
+                <input type="text" id="command" placeholder="اكتب أمر Meterpreter..." onkeypress="if(event.key==='Enter') runCommand()">
+                <button onclick="runCommand()">تنفيذ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sessionId = '{{ session_id }}';
+        
+        async function runCommand() {
+            const input = document.getElementById('command');
+            const cmd = input.value.trim();
+            
+            if (!cmd) return;
+            
+            addOutput(`> ${cmd}\n`);
+            input.value = '';
+            
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        command: cmd
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    addOutput(data.output + '\n');
+                } else {
+                    addOutput(`ERROR: ${data.output}\n`);
+                }
+            } catch (e) {
+                addOutput(`ERROR: ${e}\n`);
+            }
+        }
+        
+        async function runQuick(cmd) {
+            addOutput(`> ${cmd}\n`);
+            
+            try {
+                const res = await fetch('/api/command', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        command: cmd
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    addOutput(data.output + '\n');
+                } else {
+                    addOutput(`ERROR: ${data.output}\n`);
+                }
+            } catch (e) {
+                addOutput(`ERROR: ${e}\n`);
+            }
+        }
+        
+        function addOutput(text) {
+            const output = document.getElementById('output');
+            if (output.textContent === 'Waiting for commands...') {
+                output.textContent = '';
+            }
+            output.textContent += text;
+            output.scrollTop = output.scrollHeight;
+        }
+    </script>
+</body>
+</html>
